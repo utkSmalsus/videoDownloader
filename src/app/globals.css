@@ -1,0 +1,333 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ------------------------------------------------------------------ *
+ * Design tokens
+ * Single source of truth. Never hardcode a colour outside this block.
+ * ------------------------------------------------------------------ */
+:root {
+  color-scheme: light;
+
+  /* Surfaces & text */
+  --background: oklch(0.988 0.003 264);
+  --background-subtle: oklch(0.968 0.005 264);
+  --foreground: oklch(0.215 0.021 266);
+  --surface: oklch(1 0 0);
+  --surface-elevated: oklch(1 0 0);
+  --surface-sunken: oklch(0.972 0.004 264);
+  --border: oklch(0.918 0.007 266);
+  --border-strong: oklch(0.868 0.01 266);
+  --muted: oklch(0.955 0.005 264);
+  --muted-foreground: oklch(0.505 0.017 266);
+
+  /* Brand */
+  --primary: oklch(0.548 0.196 267);
+  --primary-hover: oklch(0.502 0.198 267);
+  --primary-foreground: oklch(0.99 0 0);
+  --primary-soft: oklch(0.952 0.024 267);
+  --accent: oklch(0.63 0.135 213);
+  --accent-foreground: oklch(0.99 0 0);
+
+  /* Status */
+  --success: oklch(0.58 0.135 158);
+  --warning: oklch(0.665 0.148 72);
+  --danger: oklch(0.565 0.208 26);
+  --danger-soft: oklch(0.96 0.022 26);
+
+  --ring: oklch(0.548 0.196 267);
+
+  /* Elevation — light mode leans on shadow */
+  --shadow-sm: 0 1px 2px -1px oklch(0.24 0.03 266 / 0.09), 0 1px 1px oklch(0.24 0.03 266 / 0.04);
+  --shadow-md: 0 4px 12px -3px oklch(0.24 0.03 266 / 0.1), 0 2px 4px -2px oklch(0.24 0.03 266 / 0.05);
+  --shadow-lg: 0 18px 40px -12px oklch(0.24 0.03 266 / 0.16), 0 4px 10px -4px oklch(0.24 0.03 266 / 0.06);
+  --shadow-glow: 0 0 0 1px oklch(0.548 0.196 267 / 0.12), 0 12px 34px -10px oklch(0.548 0.196 267 / 0.35);
+
+  /* Hero atmospherics */
+  --grid-line: oklch(0.24 0.03 266 / 0.055);
+  --glow-a: oklch(0.548 0.196 267 / 0.16);
+  --glow-b: oklch(0.63 0.135 213 / 0.14);
+
+  /* Platform accent — falls back to the app's own brand color when no [data-platform]
+   * ancestor is present, so every component that reads these tokens works unscoped too. */
+  --platform-primary: var(--primary);
+  --platform-primary-hover: var(--primary-hover);
+  --platform-primary-foreground: var(--primary-foreground);
+  --platform-soft: var(--primary-soft);
+  --platform-glow: var(--glow-a);
+  /* Gradient stops, not a composed `linear-gradient(...)` custom property — the build's
+   * oklch()→lab() fallback pass doesn't correctly re-resolve nested var() chains inside a
+   * custom property's own value, so consumers compose the gradient inline instead
+   * (see Button's primary variant for the pattern). */
+  --platform-gradient-from: var(--primary);
+  --platform-gradient-mid: var(--accent);
+  --platform-gradient-to: var(--primary);
+}
+
+/* ------------------------------------------------------------------ *
+ * Platform brand accents
+ * Scoped via [data-platform="…"] on a container — never applied globally.
+ * Each platform is tuned separately for light and dark, not just inverted.
+ * ------------------------------------------------------------------ */
+[data-platform="youtube"] {
+  --platform-primary: oklch(0.577 0.215 27);
+  --platform-primary-hover: oklch(0.515 0.213 27);
+  --platform-primary-foreground: oklch(0.99 0 0);
+  --platform-soft: oklch(0.958 0.028 27);
+  --platform-glow: oklch(0.577 0.215 27 / 0.16);
+  --platform-gradient-from: oklch(0.61 0.205 29);
+  --platform-gradient-mid: oklch(0.577 0.215 27);
+  --platform-gradient-to: oklch(0.53 0.195 19);
+}
+.dark [data-platform="youtube"] {
+  --platform-primary: oklch(0.665 0.192 25);
+  --platform-primary-hover: oklch(0.715 0.178 25);
+  --platform-primary-foreground: oklch(0.13 0.02 25);
+  --platform-soft: oklch(0.315 0.088 25);
+  --platform-glow: oklch(0.665 0.192 25 / 0.32);
+  --platform-gradient-from: oklch(0.69 0.185 28);
+  --platform-gradient-mid: oklch(0.64 0.195 22);
+  --platform-gradient-to: oklch(0.58 0.175 15);
+}
+
+[data-platform="instagram"] {
+  --platform-primary: oklch(0.53 0.21 350);
+  --platform-primary-hover: oklch(0.475 0.208 350);
+  --platform-primary-foreground: oklch(0.99 0 0);
+  --platform-soft: oklch(0.958 0.026 350);
+  --platform-glow: oklch(0.55 0.19 350 / 0.18);
+  --platform-gradient-from: oklch(0.5 0.185 305);
+  --platform-gradient-mid: oklch(0.55 0.215 355);
+  --platform-gradient-to: oklch(0.72 0.165 55);
+}
+.dark [data-platform="instagram"] {
+  --platform-primary: oklch(0.685 0.185 350);
+  --platform-primary-hover: oklch(0.735 0.172 350);
+  --platform-primary-foreground: oklch(0.15 0.02 350);
+  --platform-soft: oklch(0.32 0.08 350);
+  --platform-glow: oklch(0.685 0.185 350 / 0.3);
+  --platform-gradient-from: oklch(0.6 0.165 300);
+  --platform-gradient-mid: oklch(0.65 0.205 355);
+  --platform-gradient-to: oklch(0.78 0.155 60);
+}
+
+[data-platform="x"] {
+  --platform-primary: oklch(0.2 0 0);
+  --platform-primary-hover: oklch(0.1 0 0);
+  --platform-primary-foreground: oklch(0.99 0 0);
+  --platform-soft: oklch(0.94 0 0);
+  --platform-glow: oklch(0.2 0 0 / 0.14);
+  --platform-gradient-from: oklch(0.3 0 0);
+  --platform-gradient-mid: oklch(0.18 0 0);
+  --platform-gradient-to: oklch(0.08 0 0);
+}
+.dark [data-platform="x"] {
+  --platform-primary: oklch(0.93 0 0);
+  --platform-primary-hover: oklch(0.98 0 0);
+  --platform-primary-foreground: oklch(0.12 0 0);
+  --platform-soft: oklch(0.32 0 0);
+  --platform-glow: oklch(0.93 0 0 / 0.18);
+  --platform-gradient-from: oklch(0.85 0 0);
+  --platform-gradient-mid: oklch(0.95 0 0);
+  --platform-gradient-to: oklch(0.74 0 0);
+}
+
+[data-platform="facebook"] {
+  --platform-primary: oklch(0.55 0.19 260);
+  --platform-primary-hover: oklch(0.49 0.185 260);
+  --platform-primary-foreground: oklch(0.99 0 0);
+  --platform-soft: oklch(0.95 0.03 260);
+  --platform-glow: oklch(0.55 0.19 260 / 0.18);
+  --platform-gradient-from: oklch(0.58 0.17 250);
+  --platform-gradient-mid: oklch(0.55 0.19 260);
+  --platform-gradient-to: oklch(0.48 0.2 275);
+}
+.dark [data-platform="facebook"] {
+  --platform-primary: oklch(0.68 0.16 260);
+  --platform-primary-hover: oklch(0.73 0.15 260);
+  --platform-primary-foreground: oklch(0.14 0.02 260);
+  --platform-soft: oklch(0.32 0.08 260);
+  --platform-glow: oklch(0.68 0.16 260 / 0.3);
+  --platform-gradient-from: oklch(0.7 0.15 250);
+  --platform-gradient-mid: oklch(0.65 0.17 260);
+  --platform-gradient-to: oklch(0.58 0.18 275);
+}
+
+.dark {
+  color-scheme: dark;
+
+  --background: oklch(0.162 0.014 266);
+  --background-subtle: oklch(0.145 0.013 266);
+  --foreground: oklch(0.962 0.004 266);
+  --surface: oklch(0.198 0.016 266);
+  --surface-elevated: oklch(0.232 0.018 266);
+  --surface-sunken: oklch(0.178 0.015 266);
+  --border: oklch(0.295 0.017 266);
+  --border-strong: oklch(0.365 0.02 266);
+  --muted: oklch(0.238 0.017 266);
+  --muted-foreground: oklch(0.688 0.017 266);
+
+  --primary: oklch(0.672 0.176 268);
+  --primary-hover: oklch(0.722 0.166 268);
+  --primary-foreground: oklch(0.15 0.02 266);
+  --primary-soft: oklch(0.29 0.062 268);
+  --accent: oklch(0.775 0.125 208);
+  --accent-foreground: oklch(0.15 0.02 266);
+
+  --success: oklch(0.72 0.152 158);
+  --warning: oklch(0.795 0.145 78);
+  --danger: oklch(0.685 0.185 24);
+  --danger-soft: oklch(0.285 0.075 24);
+
+  --ring: oklch(0.712 0.166 268);
+
+  /* Elevation — dark mode leans on light, not shadow */
+  --shadow-sm: 0 1px 2px oklch(0 0 0 / 0.4);
+  --shadow-md: 0 6px 18px -6px oklch(0 0 0 / 0.55);
+  --shadow-lg: 0 24px 56px -20px oklch(0 0 0 / 0.7);
+  --shadow-glow: 0 0 0 1px oklch(0.672 0.176 268 / 0.28), 0 16px 44px -14px oklch(0.672 0.176 268 / 0.45);
+
+  --grid-line: oklch(1 0 0 / 0.038);
+  --glow-a: oklch(0.672 0.176 268 / 0.22);
+  --glow-b: oklch(0.775 0.125 208 / 0.16);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-background-subtle: var(--background-subtle);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-primary: var(--primary);
+  --color-primary-hover: var(--primary-hover);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-soft: var(--primary-soft);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-platform-primary: var(--platform-primary);
+  --color-platform-primary-hover: var(--platform-primary-hover);
+  --color-platform-primary-foreground: var(--platform-primary-foreground);
+  --color-platform-soft: var(--platform-soft);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-ring: var(--ring);
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  /* Typography scale */
+  --text-display: 3.75rem;
+  --text-display--line-height: 1.03;
+  --text-display--letter-spacing: -0.035em;
+  --text-title: 2.25rem;
+  --text-title--line-height: 1.12;
+  --text-title--letter-spacing: -0.026em;
+
+  /* Radius system */
+  --radius-xs: 0.375rem;
+  --radius-sm: 0.5rem;
+  --radius-md: 0.75rem;
+  --radius-lg: 1rem;
+  --radius-xl: 1.375rem;
+  --radius-2xl: 1.75rem;
+
+  --shadow-sm: var(--shadow-sm);
+  --shadow-md: var(--shadow-md);
+  --shadow-lg: var(--shadow-lg);
+  --shadow-glow: var(--shadow-glow);
+
+  /* Motion tokens */
+  --ease-out-quint: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-spring: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --animate-shimmer: shimmer 1.9s var(--ease-out-quint) infinite;
+  --animate-drift: drift 22s ease-in-out infinite;
+  --animate-rise: rise 0.5s var(--ease-out-quint) both;
+
+  @keyframes shimmer {
+    100% { transform: translateX(100%); }
+  }
+  @keyframes drift {
+    0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+    50% { transform: translate3d(2%, -3%, 0) scale(1.06); }
+  }
+  @keyframes rise {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: none; }
+  }
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  html {
+    -webkit-text-size-adjust: 100%;
+    scroll-behavior: smooth;
+  }
+  body {
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overscroll-behavior-y: none;
+  }
+  /* Theme swap should feel like a dissolve, not a repaint. */
+  body, .theme-transition {
+    transition: background-color 0.28s var(--ease-out-quint), color 0.28s var(--ease-out-quint);
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: var(--radius-xs);
+  }
+  ::selection {
+    background: var(--primary);
+    color: var(--primary-foreground);
+  }
+  /* Tame scrollbars inside app surfaces */
+  @supports (scrollbar-width: thin) {
+    .scroll-slim { scrollbar-width: thin; scrollbar-color: var(--border-strong) transparent; }
+  }
+}
+
+@layer utilities {
+  .surface-grid {
+    background-image:
+      linear-gradient(to right, var(--grid-line) 1px, transparent 1px),
+      linear-gradient(to bottom, var(--grid-line) 1px, transparent 1px);
+    background-size: 64px 64px;
+  }
+  .text-gradient {
+    background: linear-gradient(100deg, var(--foreground) 8%, var(--primary) 52%, var(--accent) 96%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  /* Hairline top highlight — the trick that makes dark surfaces read as lit */
+  .edge-light {
+    box-shadow: inset 0 1px 0 0 oklch(1 0 0 / 0.06);
+  }
+  /* Applied wherever a [data-platform] scope can change (nav links, the downloader shell) so
+   * swapping platforms mid-session dissolves rather than flashes. */
+  .platform-transition {
+    transition: background-color 0.3s var(--ease-out-quint), color 0.3s var(--ease-out-quint),
+      border-color 0.3s var(--ease-out-quint), box-shadow 0.3s var(--ease-out-quint);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
