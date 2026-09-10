@@ -33,7 +33,7 @@ export function ProcessingState() {
       </div>
 
       <div className="flex gap-4">
-        <div className="h-24 w-24 shrink-0 animate-pulse rounded-[var(--radius-md)] bg-muted" />
+        <div className="aspect-video w-32 shrink-0 animate-pulse rounded-[var(--radius-md)] bg-muted sm:w-40" />
         <div className="flex flex-1 flex-col gap-2.5 py-1">
           <div className="h-4 w-3/4 animate-pulse rounded-full bg-muted" />
           <div className="h-3 w-1/3 animate-pulse rounded-full bg-muted" />

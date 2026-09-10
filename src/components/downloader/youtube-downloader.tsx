@@ -33,14 +33,14 @@ export function YoutubeDownloader({ placeholder }: { placeholder: string }) {
           aria-selected={mode === "video"}
           onClick={() => setMode("video")}
           className={cn(
-            "inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] px-3.5 py-1.5 text-sm font-medium transition-colors duration-150",
+            "inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors duration-150 sm:px-3.5",
             mode === "video"
               ? "bg-surface text-foreground shadow-[var(--shadow-sm)]"
               : "text-muted-foreground hover:text-foreground",
           )}
         >
           <Film className="size-3.5" aria-hidden />
-          Download Video
+          <span className="hidden sm:inline">Download </span>Video
         </button>
         <button
           type="button"
@@ -48,14 +48,14 @@ export function YoutubeDownloader({ placeholder }: { placeholder: string }) {
           aria-selected={mode === "course"}
           onClick={() => setMode("course")}
           className={cn(
-            "inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] px-3.5 py-1.5 text-sm font-medium transition-colors duration-150",
+            "inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors duration-150 sm:px-3.5",
             mode === "course"
               ? "bg-surface text-foreground shadow-[var(--shadow-sm)]"
               : "text-muted-foreground hover:text-foreground",
           )}
         >
           <ListVideo className="size-3.5" aria-hidden />
-          Download Course
+          <span className="hidden sm:inline">Download </span>Course
         </button>
       </div>
 

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import { motion } from "motion/react";
-import { Check, Copy, RotateCcw, User, Clock } from "lucide-react";
+import { Check, Copy, RotateCcw, User, Clock, Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FormatSelector } from "./format-selector";
 import { PLATFORM_ICONS } from "@/components/icons/platform-icon";
@@ -31,10 +31,22 @@ export function MediaResult({ media, onReset }: { media: ResolvedMedia; onReset:
       className="rounded-[var(--radius-lg)] border border-border bg-surface p-6 shadow-[var(--shadow-md)]"
     >
       <div className="flex gap-4">
-        <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-[var(--radius-md)] bg-muted">
+        <div className="group relative aspect-video w-32 shrink-0 overflow-hidden rounded-[var(--radius-md)] bg-muted sm:w-40">
           {media.thumbnail && (
-            <Image src={media.thumbnail} alt="" fill sizes="96px" className="object-cover" unoptimized />
+            <Image
+              src={media.thumbnail}
+              alt=""
+              fill
+              sizes="160px"
+              className="object-cover transition-transform duration-300 group-hover:scale-105"
+              unoptimized
+            />
           )}
+          <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors duration-200 group-hover:bg-black/15">
+            <span className="inline-flex size-8 items-center justify-center rounded-full bg-black/45 text-white opacity-90 backdrop-blur-sm">
+              <Play className="size-3.5 translate-x-px fill-current" aria-hidden />
+            </span>
+          </div>
         </div>
         <div className="min-w-0 flex-1">
           <div className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-platform-soft px-2 py-0.5 text-xs font-medium text-platform-primary">

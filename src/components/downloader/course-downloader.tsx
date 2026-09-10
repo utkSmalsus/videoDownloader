@@ -3,9 +3,21 @@
 import { useState, type FormEvent } from "react";
 import Image from "next/image";
 import { AnimatePresence, motion } from "motion/react";
-import { ListChecks, Download, RotateCcw, CheckSquare, Square, Clock, Check, X as XIcon, RefreshCw } from "lucide-react";
+import {
+  ListChecks,
+  Download,
+  RotateCcw,
+  CheckSquare,
+  Square,
+  Clock,
+  CheckCircle2,
+  Circle,
+  AlertTriangle,
+  Loader2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ErrorState } from "./error-state";
+import { cn } from "@/lib/utils/cn";
 import type { CourseFetchResult, CourseLesson, MediaErrorCode, MediaResult } from "@/types/media";
 
 /** "started" is deliberately distinct from "completed" — a native browser download (see
@@ -107,7 +119,20 @@ export function CourseDownloader() {
    *  is real and is not hidden: page JavaScript has no reliable way to observe a native
    *  download's actual completion (no load/error event, no promise — verified, not assumed), so
    *  this can only ever report "started", never a verified "completed". One lesson failing
-   *  never aborts the others — each call is independent and only touches its own status. */
+   *  never aborts the others — each call is independent and only touches its own status.
+   *
+   *  target="_blank" (verified, not assumed — reproduced live both before and after this fix)
+   *  is load-bearing, not decoration: the `download` attribute is only a *hint* for a
+   *  cross-origin URL like AllDL's CDN. When the response actually has
+   *  Content-Disposition: attachment, Chrome downloads it regardless of target — no tab ever
+   *  opens, the success path is unchanged. But when AllDL hands back a technically-valid URL
+   *  that turns out to serve an HTML error page (confirmed live: this happens), an anchor with
+   *  no target navigates THIS tab to that error page, destroying the whole in-progress course
+   *  session. target="_blank" makes that failure open (or get silently popup-blocked, which is
+   *  equally fine here) in a separate tab instead — this tab, and the course loop running in
+   *  it, are never touched either way. rel="noopener noreferrer" keeps that new tab from ever
+   *  getting a `window.opener` handle back to this page (an external, untrusted CDN response
+   *  otherwise could navigate this tab itself). */
   async function downloadOneLesson(lesson: CourseLesson, height: number) {
     setLessonStatus((prev) => ({ ...prev, [lesson.videoId]: "downloading" }));
     setLessonError((prev) => {
@@ -148,14 +173,27 @@ export function CourseDownloader() {
         setLessonNote((prev) => ({ ...prev, [lesson.videoId]: `Requested ${height}p, using ${chosen.quality} (closest available)` }));
       }
 
+      // AllDL's own response schema already restricts this to a real http(s) URL (see
+      // httpUrlSchema in adapters/shared.ts) — this is a second, defense-in-depth check right
+      // before we hand it to the DOM, not a substitute for that one.
+      try {
+        new URL(chosen.downloadUrl);
+      } catch {
+        setLessonStatus((prev) => ({ ...prev, [lesson.videoId]: "failed" }));
+        setLessonError((prev) => ({ ...prev, [lesson.videoId]: "The download link for this lesson was invalid." }));
+        return;
+      }
+
       // Same mechanism as FormatSelector's single-video <a href download> — AllDL's CDN already
       // sends Content-Disposition: attachment with a real filename, so the browser handles
       // naming and the transfer itself; nothing is proxied or buffered through this page or our
-      // own server.
+      // own server. target="_blank" + rel="noopener noreferrer": see the doc comment above —
+      // this is what keeps a bad CDN response from navigating this tab away.
       const a = document.createElement("a");
       a.href = chosen.downloadUrl;
       a.download = "";
-      a.rel = "noopener";
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -263,6 +301,50 @@ export function CourseDownloader() {
             <h3 className="truncate text-base font-semibold text-foreground">{state.course.title}</h3>
             <p className="mt-0.5 text-sm text-muted-foreground">{state.course.lessons.length} lessons</p>
 
+            {/* Real progress, computed from actual lessonStatus values only — never a fake
+                timer-driven bar. Two-tone: started (success) and failed (danger) each get their
+                real share of the total; the rest of the track stays neutral (not yet attempted). */}
+            {Object.keys(lessonStatus).length > 0 && (
+              <div className="mt-4" aria-live="polite">
+                <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
+                  <span>
+                    {Object.values(lessonStatus).filter((s) => s === "started").length} /{" "}
+                    {state.course.lessons.length} started
+                    {Object.values(lessonStatus).some((s) => s === "failed") && (
+                      <span className="text-danger">
+                        {" · "}
+                        {Object.values(lessonStatus).filter((s) => s === "failed").length} failed
+                      </span>
+                    )}
+                  </span>
+                  {!downloading && Object.keys(lessonStatus).length === selected.size && (
+                    <span className="inline-flex items-center gap-1 text-success">
+                      <CheckCircle2 className="size-3.5" aria-hidden />
+                      Course download complete
+                    </span>
+                  )}
+                </div>
+                <div className="mt-2 flex h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                  <motion.div
+                    className="h-full bg-success"
+                    initial={{ width: 0 }}
+                    animate={{
+                      width: `${(Object.values(lessonStatus).filter((s) => s === "started").length / state.course.lessons.length) * 100}%`,
+                    }}
+                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                  />
+                  <motion.div
+                    className="h-full bg-danger"
+                    initial={{ width: 0 }}
+                    animate={{
+                      width: `${(Object.values(lessonStatus).filter((s) => s === "failed").length / state.course.lessons.length) * 100}%`,
+                    }}
+                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+                  />
+                </div>
+              </div>
+            )}
+
             <div className="my-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
               <button
                 type="button"
@@ -300,12 +382,17 @@ export function CourseDownloader() {
             </p>
 
             <ul className="scroll-slim flex max-h-80 flex-col gap-1.5 overflow-y-auto">
-              {state.course.lessons.map((lesson) => {
+              {state.course.lessons.map((lesson, i) => {
                 const status = lessonStatus[lesson.videoId] ?? "idle";
                 return (
                   <li
                     key={lesson.videoId}
-                    className="flex items-center gap-3 rounded-[var(--radius-sm)] border border-border bg-surface-sunken p-2.5"
+                    className={cn(
+                      "platform-transition flex items-center gap-3 rounded-[var(--radius-sm)] border p-2.5",
+                      status === "downloading"
+                        ? "border-platform-primary bg-platform-soft/40"
+                        : "border-border bg-surface-sunken",
+                    )}
                   >
                     <input
                       type="checkbox"
@@ -314,23 +401,45 @@ export function CourseDownloader() {
                       aria-label={`Include ${lesson.title}`}
                       className="size-4 shrink-0 accent-[var(--platform-primary)]"
                     />
+
+                    <span className="relative flex size-5 shrink-0 items-center justify-center" aria-hidden>
+                      {status === "idle" && <Circle className="size-4 text-muted-foreground/50" />}
+                      {status === "downloading" && <Loader2 className="size-4 animate-spin text-platform-primary" />}
+                      {status === "started" && <CheckCircle2 className="size-4 text-success" />}
+                      {status === "failed" && <AlertTriangle className="size-4 text-danger" />}
+                    </span>
+
                     <div className="relative size-11 shrink-0 overflow-hidden rounded-[var(--radius-xs)] bg-muted">
                       {lesson.thumbnail && (
                         <Image src={lesson.thumbnail} alt="" fill sizes="44px" className="object-cover" unoptimized />
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-foreground">{lesson.title}</p>
+                      <p className="truncate text-sm font-medium text-foreground">
+                        <span className="text-muted-foreground">{i + 1}.</span> {lesson.title}
+                      </p>
                       <div className="flex items-center gap-2">
-                        {formatDuration(lesson.durationSec) && (
-                          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                            <Clock className="size-3" aria-hidden />
-                            {formatDuration(lesson.durationSec)}
+                        {status === "idle" && <span className="text-xs text-muted-foreground">Waiting</span>}
+                        {status === "downloading" && (
+                          <span className="text-xs font-medium text-platform-primary">Downloading…</span>
+                        )}
+                        {status === "started" && (
+                          <span
+                            className="text-xs font-medium text-success"
+                            title="Your browser accepted the download — this page can't confirm when a native download actually finishes. Check your Downloads for the saved file."
+                          >
+                            Started
                           </span>
                         )}
                         {status === "failed" && lessonError[lesson.videoId] && (
                           <span className="truncate text-xs text-danger" title={lessonError[lesson.videoId]}>
                             {lessonError[lesson.videoId]}
+                          </span>
+                        )}
+                        {formatDuration(lesson.durationSec) && (
+                          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                            <Clock className="size-3" aria-hidden />
+                            {formatDuration(lesson.durationSec)}
                           </span>
                         )}
                         {status === "started" && lessonNote[lesson.videoId] && (
@@ -340,28 +449,12 @@ export function CourseDownloader() {
                         )}
                       </div>
                     </div>
-                    {status === "downloading" && (
-                      <span className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-platform-primary">
-                        <RefreshCw className="size-3 animate-spin" aria-hidden />
-                        Downloading
-                      </span>
-                    )}
-                    {status === "started" && (
-                      <span
-                        className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-success"
-                        title="Your browser accepted the download — this page can't confirm when a native download actually finishes. Check your Downloads for the saved file."
-                      >
-                        <Check className="size-3.5" aria-hidden />
-                        Started
-                      </span>
-                    )}
                     {status === "failed" && (
                       <button
                         type="button"
                         onClick={() => retryLesson(lesson)}
-                        className="inline-flex shrink-0 items-center gap-1 rounded-[var(--radius-xs)] px-1.5 py-1 text-xs font-medium text-danger hover:bg-danger-soft"
+                        className="inline-flex shrink-0 items-center gap-1 rounded-[var(--radius-xs)] px-2 py-1 text-xs font-medium text-danger hover:bg-danger-soft"
                       >
-                        <XIcon className="size-3.5" aria-hidden />
                         Retry
                       </button>
                     )}
@@ -369,18 +462,6 @@ export function CourseDownloader() {
                 );
               })}
             </ul>
-
-            {Object.keys(lessonStatus).length > 0 && (
-              <p className="mt-3 text-xs text-muted-foreground" aria-live="polite">
-                Started: {Object.values(lessonStatus).filter((s) => s === "started").length} /{" "}
-                {state.course.lessons.length}
-                {Object.values(lessonStatus).some((s) => s === "failed") && (
-                  <>
-                    {" · "}Failed: {Object.values(lessonStatus).filter((s) => s === "failed").length}
-                  </>
-                )}
-              </p>
-            )}
 
             <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
               <Button
