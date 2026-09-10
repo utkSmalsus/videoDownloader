@@ -48,7 +48,7 @@ export function MobileNav({ open, onClose }: MobileNavProps) {
             >
               <X className="size-[18px]" aria-hidden />
             </button>
-            <Sidebar onNavigate={onClose} />
+            <Sidebar onNavigate={onClose} instanceId="mobile" />
           </motion.div>
         </div>
       )}

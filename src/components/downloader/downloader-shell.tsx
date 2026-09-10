@@ -11,10 +11,13 @@ import type { Platform } from "@/types/media";
 interface DownloaderShellProps {
   platform?: Platform;
   placeholder: string;
+  /** "hero" renders the larger homepage treatment of the input. Presentation only —
+   *  the resolve flow underneath is identical either way. */
+  size?: "default" | "hero";
 }
 
 /** The one downloader UI, reused verbatim by the homepage and every platform page. */
-export function DownloaderShell({ platform, placeholder }: DownloaderShellProps) {
+export function DownloaderShell({ platform, placeholder, size = "default" }: DownloaderShellProps) {
   const { state, submit, reset } = useMediaResolver(platform);
 
   // Fixed platform pages always keep their own accent. The homepage has none until a result
@@ -29,6 +32,7 @@ export function DownloaderShell({ platform, placeholder }: DownloaderShellProps)
         placeholder={placeholder}
         pending={state.status === "processing"}
         onSubmit={submit}
+        size={size}
       />
 
       <AnimatePresence mode="wait">

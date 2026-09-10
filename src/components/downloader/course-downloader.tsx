@@ -236,24 +236,40 @@ export function CourseDownloader() {
     setLessonNote({});
   }
 
+  // Derived purely from real per-lesson state — no timers, no synthetic percentages.
+  const total = state.status === "ready" ? state.course.lessons.length : 0;
+  const startedCount = Object.values(lessonStatus).filter((s) => s === "started").length;
+  const failedCount = Object.values(lessonStatus).filter((s) => s === "failed").length;
+  const attempted = Object.keys(lessonStatus).length;
+  const pct = total > 0 ? Math.round((startedCount / total) * 100) : 0;
+  const courseComplete = !downloading && attempted > 0 && attempted === selected.size;
+
   return (
     <div className="flex flex-col gap-5">
       <form
         onSubmit={handleFetch}
-        className="platform-transition flex flex-col gap-2 rounded-[var(--radius-lg)] border border-border bg-surface p-2 shadow-[var(--shadow-md)] transition-shadow duration-200 focus-within:shadow-[0_0_0_1px_var(--platform-primary),0_12px_34px_-10px_var(--platform-glow)] sm:flex-row sm:items-center"
+        className="conic-ring platform-transition relative isolate flex flex-col gap-2 rounded-[var(--radius-lg)] border border-border bg-surface/90 p-2 shadow-[var(--shadow-md)] backdrop-blur-xl transition-shadow duration-300 focus-within:shadow-[0_0_0_1px_var(--platform-primary),0_18px_50px_-14px_var(--platform-glow)] sm:flex-row sm:items-center"
       >
-        <input
-          type="url"
-          inputMode="url"
-          autoComplete="off"
-          spellCheck={false}
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-          placeholder="https://www.youtube.com/playlist?list=..."
-          aria-label="Playlist URL"
-          className="h-12 w-full rounded-[var(--radius-md)] bg-transparent px-4 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none"
-        />
-        <Button type="submit" size="lg" loading={state.status === "fetching"} disabled={!url.trim()} className="w-full sm:w-auto">
+        <div className="relative flex flex-1 items-center">
+          <span
+            className="platform-transition absolute left-3 inline-flex size-7 shrink-0 items-center justify-center rounded-[var(--radius-xs)] bg-platform-soft text-platform-primary"
+            aria-hidden
+          >
+            <ListChecks className="size-3.5" />
+          </span>
+          <input
+            type="url"
+            inputMode="url"
+            autoComplete="off"
+            spellCheck={false}
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            placeholder="https://www.youtube.com/playlist?list=..."
+            aria-label="Playlist URL"
+            className="h-12 w-full rounded-[var(--radius-md)] bg-transparent pr-4 pl-12 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none"
+          />
+        </div>
+        <Button type="submit" size="md" loading={state.status === "fetching"} disabled={!url.trim()} className="w-full sm:w-auto">
           {state.status !== "fetching" && (
             <>
               <ListChecks className="size-4" aria-hidden />
@@ -270,15 +286,15 @@ export function CourseDownloader() {
             key="loading"
             exit={{ opacity: 0 }}
             aria-live="polite"
-            className="rounded-[var(--radius-lg)] border border-border bg-surface p-6"
+            className="rounded-[var(--radius-lg)] border border-border bg-surface/90 p-6 backdrop-blur-xl"
           >
             <div className="mb-4 flex items-center gap-2.5 text-sm font-medium text-foreground">
-              <span className="size-2 animate-pulse rounded-full bg-platform-primary" aria-hidden />
-              Fetching lessons…
+              <Loader2 className="size-4 animate-spin text-platform-primary" aria-hidden />
+              Reading playlist…
             </div>
             <div className="flex flex-col gap-2">
               {[0, 1, 2].map((i) => (
-                <div key={i} className="h-14 animate-pulse rounded-[var(--radius-sm)] bg-muted" />
+                <div key={i} className="skeleton h-16 rounded-[var(--radius-sm)]" />
               ))}
             </div>
           </motion.div>
@@ -293,63 +309,116 @@ export function CourseDownloader() {
         {state.status === "ready" && (
           <motion.div
             key="ready"
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-            className="rounded-[var(--radius-lg)] border border-border bg-surface p-6 shadow-[var(--shadow-md)]"
+            className="relative overflow-hidden rounded-[var(--radius-lg)] border border-border bg-surface/90 shadow-[var(--shadow-lg)] backdrop-blur-xl"
           >
-            <h3 className="truncate text-base font-semibold text-foreground">{state.course.title}</h3>
-            <p className="mt-0.5 text-sm text-muted-foreground">{state.course.lessons.length} lessons</p>
+            <div
+              className="pointer-events-none absolute inset-x-0 top-0 h-32 opacity-70"
+              style={{ background: "radial-gradient(60% 100% at 50% 0%, var(--platform-glow), transparent 70%)" }}
+              aria-hidden
+            />
 
-            {/* Real progress, computed from actual lessonStatus values only — never a fake
-                timer-driven bar. Two-tone: started (success) and failed (danger) each get their
-                real share of the total; the rest of the track stays neutral (not yet attempted). */}
-            {Object.keys(lessonStatus).length > 0 && (
-              <div className="mt-4" aria-live="polite">
-                <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
-                  <span>
-                    {Object.values(lessonStatus).filter((s) => s === "started").length} /{" "}
-                    {state.course.lessons.length} started
-                    {Object.values(lessonStatus).some((s) => s === "failed") && (
-                      <span className="text-danger">
-                        {" · "}
-                        {Object.values(lessonStatus).filter((s) => s === "failed").length} failed
-                      </span>
-                    )}
+            {/* ---------- Course header: cover, title, live progress ---------- */}
+            <div className="relative flex flex-col gap-4 p-5 sm:flex-row sm:p-6">
+              {/* Cover art is the first lesson's thumbnail — a playlist has no artwork of
+                  its own, and this is the frame YouTube itself shows for the course. */}
+              <div className="relative aspect-video w-full shrink-0 overflow-hidden rounded-[var(--radius-md)] bg-muted sm:w-44">
+                {state.course.lessons[0]?.thumbnail && (
+                  <Image
+                    src={state.course.lessons[0].thumbnail as string}
+                    alt=""
+                    fill
+                    sizes="176px"
+                    className="object-cover"
+                    unoptimized
+                  />
+                )}
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-2.5 py-1.5">
+                  <span className="text-[11px] font-medium text-white">
+                    {state.course.lessons.length} lessons
                   </span>
-                  {!downloading && Object.keys(lessonStatus).length === selected.size && (
-                    <span className="inline-flex items-center gap-1 text-success">
-                      <CheckCircle2 className="size-3.5" aria-hidden />
-                      Course download complete
-                    </span>
-                  )}
-                </div>
-                <div className="mt-2 flex h-1.5 w-full overflow-hidden rounded-full bg-muted">
-                  <motion.div
-                    className="h-full bg-success"
-                    initial={{ width: 0 }}
-                    animate={{
-                      width: `${(Object.values(lessonStatus).filter((s) => s === "started").length / state.course.lessons.length) * 100}%`,
-                    }}
-                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                  />
-                  <motion.div
-                    className="h-full bg-danger"
-                    initial={{ width: 0 }}
-                    animate={{
-                      width: `${(Object.values(lessonStatus).filter((s) => s === "failed").length / state.course.lessons.length) * 100}%`,
-                    }}
-                    transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                  />
                 </div>
               </div>
-            )}
 
-            <div className="my-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-4">
+              <div className="min-w-0 flex-1">
+                <h3 className="text-lg leading-snug font-semibold tracking-tight text-balance text-foreground">
+                  {state.course.title}
+                </h3>
+
+                {attempted === 0 ? (
+                  <p className="mt-1.5 text-sm text-muted-foreground">
+                    {selected.size} of {state.course.lessons.length} selected · ready to download
+                  </p>
+                ) : (
+                  <div className="mt-3" aria-live="polite">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="text-sm text-muted-foreground">
+                        {startedCount} of {total} started
+                        {failedCount > 0 && <span className="text-danger"> · {failedCount} failed</span>}
+                      </span>
+                      <span className="text-2xl font-semibold tracking-tight tabular-nums text-foreground">
+                        {pct}%
+                      </span>
+                    </div>
+                    {/* Two real segments: started and failed each take their true share.
+                        The remainder is genuinely "not attempted yet", not padding. */}
+                    <div className="mt-2 flex h-2 w-full overflow-hidden rounded-full bg-muted">
+                      <motion.div
+                        className="h-full rounded-l-full bg-success"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(startedCount / Math.max(total, 1)) * 100}%` }}
+                        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+                      />
+                      <motion.div
+                        className="h-full bg-danger"
+                        initial={{ width: 0 }}
+                        animate={{ width: `${(failedCount / Math.max(total, 1)) * 100}%` }}
+                        transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* ---------- Completion banner ---------- */}
+            <AnimatePresence>
+              {courseComplete && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+                  className="relative overflow-hidden px-5 sm:px-6"
+                >
+                  <div className="mb-1 flex items-center gap-3 rounded-[var(--radius-md)] border border-success/30 bg-success/8 p-4">
+                    <span className="inline-flex size-9 shrink-0 animate-[var(--animate-pop)] items-center justify-center rounded-full bg-success/15 text-success">
+                      <CheckCircle2 className="size-5" aria-hidden />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-foreground">
+                        {failedCount === 0 ? "Course handed to your browser" : "Finished with some failures"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {startedCount} of {selected.size} lesson{selected.size === 1 ? "" : "s"} started
+                        {failedCount > 0 && ` · ${failedCount} to retry`} — check your downloads for the files.
+                      </p>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className="rule-fade mx-5 sm:mx-6" />
+
+            {/* ---------- Controls ---------- */}
+            <div className="relative flex flex-wrap items-center justify-between gap-3 px-5 py-4 sm:px-6">
               <button
                 type="button"
                 onClick={() => toggleAll(state.course.lessons)}
-                className="inline-flex items-center gap-1.5 text-sm font-medium text-platform-primary hover:underline"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-platform-primary transition-opacity duration-150 hover:opacity-75"
               >
                 {selected.size === state.course.lessons.length ? (
                   <CheckSquare className="size-4" aria-hidden />
@@ -367,7 +436,7 @@ export function CourseDownloader() {
                 <select
                   value={quality}
                   onChange={(e) => setQuality(Number(e.target.value))}
-                  className="h-9 rounded-[var(--radius-sm)] border border-border bg-surface-sunken px-2.5 text-sm text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+                  className="h-9 rounded-[var(--radius-sm)] border border-border bg-surface-sunken px-2.5 text-sm text-foreground transition-colors duration-150 hover:border-border-strong focus-visible:outline-2 focus-visible:outline-ring"
                 >
                   {QUALITY_TIERS.map((t) => (
                     <option key={t.height} value={t.height}>
@@ -377,52 +446,73 @@ export function CourseDownloader() {
                 </select>
               </label>
             </div>
-            <p className="mb-3 text-xs text-muted-foreground">
-              Falls back to the closest quality actually available per lesson — never fabricated.
-            </p>
 
-            <ul className="scroll-slim flex max-h-80 flex-col gap-1.5 overflow-y-auto">
+            {/* ---------- Lesson queue ---------- */}
+            <ul className="scroll-slim relative flex max-h-[22rem] flex-col gap-1.5 overflow-y-auto px-5 pb-1 sm:px-6">
               {state.course.lessons.map((lesson, i) => {
                 const status = lessonStatus[lesson.videoId] ?? "idle";
+                const active = status === "downloading";
                 return (
                   <li
                     key={lesson.videoId}
                     className={cn(
-                      "platform-transition flex items-center gap-3 rounded-[var(--radius-sm)] border p-2.5",
-                      status === "downloading"
-                        ? "border-platform-primary bg-platform-soft/40"
-                        : "border-border bg-surface-sunken",
+                      "platform-transition relative flex items-center gap-3 overflow-hidden rounded-[var(--radius-sm)] border p-2.5",
+                      active && "border-platform-primary bg-platform-soft/40",
+                      status === "started" && "border-success/30 bg-success/5",
+                      status === "failed" && "border-danger/35 bg-danger-soft/40",
+                      status === "idle" && "border-border bg-surface-sunken",
                     )}
                   >
+                    {/* Shimmer only on the lesson actually in flight — motion here means
+                        "this one is working right now", nothing else. */}
+                    {active && (
+                      <span
+                        className="pointer-events-none absolute inset-0 animate-[var(--animate-sweep)] bg-[linear-gradient(90deg,transparent,var(--platform-glow),transparent)]"
+                        aria-hidden
+                      />
+                    )}
+
                     <input
                       type="checkbox"
                       checked={selected.has(lesson.videoId)}
                       onChange={() => toggleLesson(lesson.videoId)}
                       aria-label={`Include ${lesson.title}`}
-                      className="size-4 shrink-0 accent-[var(--platform-primary)]"
+                      className="relative size-4 shrink-0 accent-[var(--platform-primary)]"
                     />
 
                     <span className="relative flex size-5 shrink-0 items-center justify-center" aria-hidden>
-                      {status === "idle" && <Circle className="size-4 text-muted-foreground/50" />}
-                      {status === "downloading" && <Loader2 className="size-4 animate-spin text-platform-primary" />}
-                      {status === "started" && <CheckCircle2 className="size-4 text-success" />}
-                      {status === "failed" && <AlertTriangle className="size-4 text-danger" />}
+                      {status === "idle" && <Circle className="size-4 text-muted-foreground/45" />}
+                      {active && <Loader2 className="size-4 animate-spin text-platform-primary" />}
+                      {status === "started" && (
+                        <CheckCircle2 className="size-4 animate-[var(--animate-pop)] text-success" />
+                      )}
+                      {status === "failed" && (
+                        <AlertTriangle className="size-4 animate-[var(--animate-pulse-soft)] text-danger" />
+                      )}
                     </span>
 
-                    <div className="relative size-11 shrink-0 overflow-hidden rounded-[var(--radius-xs)] bg-muted">
+                    <span className="relative w-6 shrink-0 text-xs font-medium tabular-nums text-muted-foreground">
+                      {String(i + 1).padStart(2, "0")}
+                    </span>
+
+                    <div className="relative size-10 shrink-0 overflow-hidden rounded-[var(--radius-xs)] bg-muted">
                       {lesson.thumbnail && (
-                        <Image src={lesson.thumbnail} alt="" fill sizes="44px" className="object-cover" unoptimized />
+                        <Image src={lesson.thumbnail} alt="" fill sizes="40px" className="object-cover" unoptimized />
                       )}
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-foreground">
-                        <span className="text-muted-foreground">{i + 1}.</span> {lesson.title}
+
+                    <div className="relative min-w-0 flex-1">
+                      <p
+                        className={cn(
+                          "truncate text-sm font-medium transition-colors duration-200",
+                          status === "started" ? "text-muted-foreground" : "text-foreground",
+                        )}
+                      >
+                        {lesson.title}
                       </p>
                       <div className="flex items-center gap-2">
                         {status === "idle" && <span className="text-xs text-muted-foreground">Waiting</span>}
-                        {status === "downloading" && (
-                          <span className="text-xs font-medium text-platform-primary">Downloading…</span>
-                        )}
+                        {active && <span className="text-xs font-medium text-platform-primary">Downloading…</span>}
                         {status === "started" && (
                           <span
                             className="text-xs font-medium text-success"
@@ -437,7 +527,7 @@ export function CourseDownloader() {
                           </span>
                         )}
                         {formatDuration(lesson.durationSec) && (
-                          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                          <span className="inline-flex shrink-0 items-center gap-1 text-xs text-muted-foreground">
                             <Clock className="size-3" aria-hidden />
                             {formatDuration(lesson.durationSec)}
                           </span>
@@ -449,12 +539,14 @@ export function CourseDownloader() {
                         )}
                       </div>
                     </div>
+
                     {status === "failed" && (
                       <button
                         type="button"
                         onClick={() => retryLesson(lesson)}
-                        className="inline-flex shrink-0 items-center gap-1 rounded-[var(--radius-xs)] px-2 py-1 text-xs font-medium text-danger hover:bg-danger-soft"
+                        className="relative inline-flex shrink-0 items-center gap-1 rounded-[var(--radius-xs)] border border-danger/30 px-2 py-1 text-xs font-medium text-danger transition-colors duration-150 hover:bg-danger-soft"
                       >
+                        <RotateCcw className="size-3" aria-hidden />
                         Retry
                       </button>
                     )}
@@ -463,18 +555,23 @@ export function CourseDownloader() {
               })}
             </ul>
 
-            <div className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4">
+            <p className="relative px-5 pt-3 text-xs text-muted-foreground sm:px-6">
+              Falls back to the closest quality actually available per lesson — never fabricated.
+            </p>
+
+            {/* ---------- Actions ---------- */}
+            <div className="relative mt-4 flex flex-wrap gap-2 border-t border-border p-5 sm:p-6">
               <Button
-                size="sm"
+                size="md"
                 loading={downloading}
                 disabled={selected.size === 0}
                 onClick={() => handleDownloadCourse(state.course.lessons)}
               >
-                <Download className="size-3.5" aria-hidden />
-                Download course ({selected.size})
+                <Download className="size-4" aria-hidden />
+                {downloading ? "Downloading course" : `Download course (${selected.size})`}
               </Button>
-              <Button variant="ghost" size="sm" onClick={reset}>
-                <RotateCcw className="size-3.5" aria-hidden />
+              <Button variant="ghost" size="md" onClick={reset}>
+                <RotateCcw className="size-4" aria-hidden />
                 New course
               </Button>
             </div>

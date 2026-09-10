@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { motion } from "motion/react";
 import { Film, ListVideo } from "lucide-react";
 import { DownloaderShell } from "./downloader-shell";
 import { CourseDownloader } from "./course-downloader";
@@ -27,36 +28,40 @@ export function YoutubeDownloader({ placeholder }: { placeholder: string }) {
         aria-label="Download mode"
         className="inline-flex self-center rounded-[var(--radius-md)] border border-border bg-surface-sunken p-1"
       >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "video"}
-          onClick={() => setMode("video")}
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors duration-150 sm:px-3.5",
-            mode === "video"
-              ? "bg-surface text-foreground shadow-[var(--shadow-sm)]"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          <Film className="size-3.5" aria-hidden />
-          <span className="hidden sm:inline">Download </span>Video
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mode === "course"}
-          onClick={() => setMode("course")}
-          className={cn(
-            "inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors duration-150 sm:px-3.5",
-            mode === "course"
-              ? "bg-surface text-foreground shadow-[var(--shadow-sm)]"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          <ListVideo className="size-3.5" aria-hidden />
-          <span className="hidden sm:inline">Download </span>Course
-        </button>
+        {(
+          [
+            { id: "video", icon: Film, label: "Video" },
+            { id: "course", icon: ListVideo, label: "Course" },
+          ] as const
+        ).map(({ id, icon: Icon, label }) => (
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={mode === id}
+            onClick={() => setMode(id)}
+            className={cn(
+              "relative inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] px-3 py-1.5 text-sm font-medium whitespace-nowrap transition-colors duration-200 sm:px-3.5",
+              mode === id ? "text-foreground" : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {/* One shared layoutId means the pill physically slides between tabs
+                instead of cross-fading — the motion shows where you went. */}
+            {mode === id && (
+              <motion.span
+                layoutId="downloader-tab"
+                transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                className="absolute inset-0 rounded-[var(--radius-sm)] bg-surface shadow-[var(--shadow-sm)]"
+                aria-hidden
+              />
+            )}
+            <Icon className="relative size-3.5" aria-hidden />
+            <span className="relative">
+              <span className="hidden sm:inline">Download </span>
+              {label}
+            </span>
+          </button>
+        ))}
       </div>
 
       <div hidden={mode !== "video"}>
